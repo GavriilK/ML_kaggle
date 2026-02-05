@@ -4,7 +4,7 @@ from sklearn.metrics import accuracy_score,f1_score
 import pandas as pd
 import optuna
 import datetime
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE,ADASYN
 
 train = pd.read_parquet('processing/train_features.parquet')
 submission = pd.read_parquet('processing/test_features.parquet')
@@ -15,13 +15,15 @@ y = pd.read_parquet('processing/y_train.parquet').values.ravel()
 print(f"NaN in train before SMOTE: {train.isna().sum().sum()}")
 print(f"NaN in y: {pd.isna(y).sum()}")
 
-# Apply SMOTE to handle class imbalance
-smote = SMOTE(random_state=42, sampling_strategy="not majority")
-X_resampled, y_resampled = smote.fit_resample(train, y)
-
 # train/test/val split :
-X_intermediate, X_val, y_intermediate, y_val = train_test_split(X_resampled, y_resampled, test_size=0.1, random_state=42, stratify=y_resampled)
+print("Splitting data into train, validation, and test sets...")
+X_intermediate, X_val, y_intermediate, y_val = train_test_split(train, y, test_size=0.1, random_state=42, stratify=y)
 X_train, X_test, y_train, y_test = train_test_split(X_intermediate, y_intermediate, test_size=0.1, random_state=42, stratify=y_intermediate)
+
+#Apply SMOTE to handle class imbalance on training set
+print("Applying SMOTE to handle class imbalance...")
+smote = SMOTE(random_state=42, sampling_strategy="not majority")
+X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
 
 def objective(trial):
     param = {
@@ -34,13 +36,13 @@ def objective(trial):
     }
     
     model = HistGradientBoostingClassifier(**param)
-    model.fit(X_train, y_train)
+    model.fit(X_resampled, y_resampled)
     y_pred = model.predict(X_test)
-    f1 = f1_score(y_test, y_pred, average='weighted')
+    f1 = f1_score(y_test, y_pred, average='macro')
     return f1
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=5)
+study.optimize(objective, n_trials=2,n_jobs=5)
 print('Best trial:')
 trial = study.best_trial
 print(f'  F1 Score: {trial.value}')
@@ -48,17 +50,22 @@ print('  Params: ')
 for key, value in trial.params.items():
     print(f'    {key}: {value}')
 
-# train on full train and estimate value on validation set
-best_params = trial.params
-model = HistGradientBoostingClassifier(**best_params)
-model.fit(X_intermediate, y_intermediate)
+# After hyperparameter tuning, resample intermediate data
+X_intermediate_resampled, y_intermediate_resampled = smote.fit_resample(X_intermediate, y_intermediate)
+
+# Train final model on resampled data
+model = HistGradientBoostingClassifier(**trial.params)
+model.fit(X_intermediate_resampled, y_intermediate_resampled)
+
+# Validate on ORIGINAL validation data
 y_val_pred = model.predict(X_val)
-val_f1 = f1_score(y_val, y_val_pred, average='weighted')
+val_f1 = f1_score(y_val, y_val_pred, average='macro')
 val2_f1 = f1_score(y_val, y_val_pred, average=None)
 print(f'Validation F1 Score: {val_f1}, \n Validation F1 Score (non-weighted): {val2_f1}')
 
 
 # Predict on submission set
+print("Generating submission...")
 submission_pred = model.predict(submission)
 date = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}'
-pd.DataFrame(submission_pred, columns=['change_type'], index=sample_submission.index).to_csv(f'submissions/histgb_SMOTENC_submission_{date}.csv', index=True, index_label='Id')
+pd.DataFrame(submission_pred, columns=['change_type'], index=sample_submission.index).to_csv(f'submissions/histgb_SMOTE_submission_{date}.csv', index=True, index_label='Id')

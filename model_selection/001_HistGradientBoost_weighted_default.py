@@ -4,6 +4,7 @@ from sklearn.metrics import accuracy_score,f1_score
 import pandas as pd
 import optuna
 import datetime
+import numpy as np
 
 train = pd.read_parquet('processing/train_features.parquet')
 submission = pd.read_parquet('processing/test_features.parquet')
@@ -16,7 +17,7 @@ X_train, X_test, y_train, y_test = train_test_split(X_intermediate, y_intermedia
 
 def objective(trial):
     param = {
-        'learning_rate': trial.suggest_float('learning_rate', 0.01, 1),
+        'learning_rate': trial.suggest_float('learning_rate', 0.01, 1.0),
         'max_iter': 500,
         'max_depth': trial.suggest_int('max_depth', 3, 20),
         'l2_regularization': trial.suggest_float('l2_regularization', 0.0, 1.0),
@@ -27,11 +28,13 @@ def objective(trial):
     model = HistGradientBoostingClassifier(**param)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
-    f1 = f1_score(y_test, y_pred, average='weighted')
-    return f1
+    f1 = f1_score(y_test, y_pred, average='macro')
+    acc_test = accuracy_score(y_test, y_pred)
+    acc_train = accuracy_score(y_train, model.predict(X_train))
+    return f1 + np.abs(acc_test - acc_train)
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=5)
+study.optimize(objective, n_trials=20,n_jobs=-1)
 print('Best trial:')
 trial = study.best_trial
 print(f'  F1 Score: {trial.value}')
@@ -44,7 +47,7 @@ best_params = trial.params
 model = HistGradientBoostingClassifier(**best_params)
 model.fit(X_intermediate, y_intermediate)
 y_val_pred = model.predict(X_val)
-val_f1 = f1_score(y_val, y_val_pred, average='weighted')
+val_f1 = f1_score(y_val, y_val_pred, average='macro')
 val2_f1 = f1_score(y_val, y_val_pred, average=None)
 print(f'Validation F1 Score: {val_f1}, \n Validation F1 Score (non-weighted): {val2_f1}')
 
