@@ -101,6 +101,7 @@ change_status_test = test_df[change_status_cols].apply(LabelEncoder().fit_transf
 
 # Polygon features
 print("Calculating polygon features...")
+print("area and perimeter (log and raw)...")
 area_train_log = pd.DataFrame({'area': np.log1p(train_df.geometry.area)}, index=train_df.index)
 area_test_log = pd.DataFrame({'area': np.log1p(test_df.geometry.area)}, index=test_df.index)
 
@@ -113,16 +114,19 @@ area_test = pd.DataFrame({'area': test_df.geometry.area}, index=test_df.index)
 perimeter_train = pd.DataFrame({'perimeter': train_df.geometry.length}, index=train_df.index)
 perimeter_test = pd.DataFrame({'perimeter': test_df.geometry.length}, index=test_df.index)
 
+print("centroids")
 x_centroid_train = pd.DataFrame({'x_centroid': train_df.geometry.centroid.x}, index=train_df.index)
 y_centroid_train = pd.DataFrame({'y_centroid': train_df.geometry.centroid.y}, index=train_df.index)
 x_centroid_test = pd.DataFrame({'x_centroid': test_df.geometry.centroid.x}, index=test_df.index)
 y_centroid_test = pd.DataFrame({'y_centroid': test_df.geometry.centroid.y}, index=test_df.index)
 
-product_train = area_train['area'] * perimeter_train['perimeter']
-product_test = area_test['area'] * perimeter_test['perimeter']
+print("product and ratios...")
+product_train = pd.DataFrame({'product': area_train['area'].values * perimeter_train['perimeter'].values}, index=train_df.index)
+product_test = pd.DataFrame({'product': area_test['area'].values * perimeter_test['perimeter'].values}, index=test_df.index)
 
-ratio_train = area_train['area'] / (perimeter_train['perimeter'] + 1e-5)  # add small value to avoid division by zero
-ratio_test = area_test['area'] / (perimeter_test['perimeter'] + 1e-5)
+min_value = min(area_train['area'].min(), perimeter_train['perimeter'].min())
+ratio_train = pd.DataFrame({'ratio': area_train['area'].values / (perimeter_train['perimeter'].values + min_value*0.01)}, index=train_df.index)  # add small value to avoid division by zero
+ratio_test = pd.DataFrame({'ratio': area_test['area'].values / (perimeter_test['perimeter'].values + min_value*0.01)}, index=test_df.index)
 
 # Standardize polygon features
 polygon_features_train = pd.concat([area_train_log, area_train, perimeter_train_log, perimeter_train, x_centroid_train, y_centroid_train, product_train, ratio_train], axis=1)
