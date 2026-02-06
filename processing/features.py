@@ -65,16 +65,31 @@ img_features = [col for col in train_df.columns if col.startswith('img_')]
 train_img = train_df[img_features].copy()
 test_img = test_df[img_features].copy()
 
+# create variation features for the images
+train_diff_img = train_img.diff(axis=1).add_suffix('_diff')
+test_diff_img = test_img.diff(axis=1).add_suffix('_diff')
+train_img = pd.concat([train_img, train_diff_img], axis=1)
+test_img = pd.concat([test_img, test_diff_img], axis=1)
+
+# create mean/std features 
+std_features = [name for name in train_img.columns if 'std' in name]
+mean_features = [name for name in train_img.columns if 'mean' in name]
+for names in zip(std_features, mean_features):
+    std_name = names[0]
+    mean_name = names[1]
+    train_img[f'{mean_name}_over_{std_name}'] = train_img[mean_name] / (train_img[std_name] + 1e-5) # add small value to avoid division by zero
+    test_img[f'{mean_name}_over_{std_name}'] = test_img[mean_name] / (test_img[std_name] + 1e-5)
+
 # Standardize std and mean features
 scaler = StandardScaler()
 train_img_scaled = pd.DataFrame(
     scaler.fit_transform(train_img),
-    columns=img_features,
+    columns=train_img.columns,
     index=train_df.index
 )
 test_img_scaled = pd.DataFrame(
     scaler.transform(test_img),
-    columns=img_features,
+    columns=test_img.columns,
     index=test_df.index
 )
 
@@ -86,20 +101,32 @@ change_status_test = test_df[change_status_cols].apply(LabelEncoder().fit_transf
 
 # Polygon features
 print("Calculating polygon features...")
-area_train = pd.DataFrame({'area': np.log1p(train_df.geometry.area)}, index=train_df.index)
-area_test = pd.DataFrame({'area': np.log1p(test_df.geometry.area)}, index=test_df.index)
+area_train_log = pd.DataFrame({'area': np.log1p(train_df.geometry.area)}, index=train_df.index)
+area_test_log = pd.DataFrame({'area': np.log1p(test_df.geometry.area)}, index=test_df.index)
 
-perimeter_train = pd.DataFrame({'perimeter': np.log1p(train_df.geometry.length)}, index=train_df.index)
-perimeter_test = pd.DataFrame({'perimeter': np.log1p(test_df.geometry.length)}, index=test_df.index)
+perimeter_train_log = pd.DataFrame({'perimeter': np.log1p(train_df.geometry.length)}, index=train_df.index)
+perimeter_test_log = pd.DataFrame({'perimeter': np.log1p(test_df.geometry.length)}, index=test_df.index)
+
+area_train = pd.DataFrame({'area': train_df.geometry.area}, index=train_df.index)
+area_test = pd.DataFrame({'area': test_df.geometry.area}, index=test_df.index)
+
+perimeter_train = pd.DataFrame({'perimeter': train_df.geometry.length}, index=train_df.index)
+perimeter_test = pd.DataFrame({'perimeter': test_df.geometry.length}, index=test_df.index)
 
 x_centroid_train = pd.DataFrame({'x_centroid': train_df.geometry.centroid.x}, index=train_df.index)
 y_centroid_train = pd.DataFrame({'y_centroid': train_df.geometry.centroid.y}, index=train_df.index)
 x_centroid_test = pd.DataFrame({'x_centroid': test_df.geometry.centroid.x}, index=test_df.index)
 y_centroid_test = pd.DataFrame({'y_centroid': test_df.geometry.centroid.y}, index=test_df.index)
 
+product_train = area_train['area'] * perimeter_train['perimeter']
+product_test = area_test['area'] * perimeter_test['perimeter']
+
+ratio_train = area_train['area'] / (perimeter_train['perimeter'] + 1e-5)  # add small value to avoid division by zero
+ratio_test = area_test['area'] / (perimeter_test['perimeter'] + 1e-5)
+
 # Standardize polygon features
-polygon_features_train = pd.concat([area_train, perimeter_train, x_centroid_train, y_centroid_train], axis=1)
-polygon_features_test = pd.concat([area_test, perimeter_test, x_centroid_test, y_centroid_test], axis=1)
+polygon_features_train = pd.concat([area_train_log, area_train, perimeter_train_log, perimeter_train, x_centroid_train, y_centroid_train, product_train, ratio_train], axis=1)
+polygon_features_test = pd.concat([area_test_log, area_test, perimeter_test_log, perimeter_test, x_centroid_test, y_centroid_test, product_test, ratio_test], axis=1)
 scaler_polygon = StandardScaler()
 polygon_features_train_scaled = pd.DataFrame(scaler_polygon.fit_transform(polygon_features_train), columns=polygon_features_train.columns, index=train_df.index)
 polygon_features_test_scaled = pd.DataFrame(scaler_polygon.transform(polygon_features_test), columns=polygon_features_test.columns, index=test_df.index)

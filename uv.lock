@@ -410,6 +410,18 @@ wheels = [
 ]
 
 [[package]]
+name = "flaml"
+version = "2.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c7/17/ad442044ee767f372648cfac827642dede76afc32ddac6f36d21baee991b/flaml-2.5.0.tar.gz", hash = "sha256:c1cbf0056ccc44a18539e0c3e18c0142706c72716fa56687fce52444b251c549", size = 307105, upload-time = "2026-01-21T08:50:18.299Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/47/b0808d7dc09cb099027e878f687a846179489535e6ad284f8df041b17b3b/flaml-2.5.0-py3-none-any.whl", hash = "sha256:063ad97f410032aedc5f157226d3e4093705896102a9aa40c56b8c1d2c8b2e97", size = 337687, upload-time = "2026-01-21T08:50:16.324Z" },
+]
+
+[[package]]
 name = "fonttools"
 version = "4.61.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1156,6 +1168,7 @@ name = "ml-kaggle"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "flaml" },
     { name = "geopandas" },
     { name = "imblearn" },
     { name = "jupyter" },
@@ -1169,6 +1182,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "flaml", specifier = ">=2.5.0" },
     { name = "geopandas", specifier = ">=1.1.2" },
     { name = "imblearn", specifier = ">=0.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
