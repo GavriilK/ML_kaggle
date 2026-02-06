@@ -2,7 +2,7 @@ import pandas as pd
 import geopandas as gpd
 from sklearn.preprocessing import StandardScaler, MultiLabelBinarizer, LabelEncoder
 import numpy as np
-from sklearn.impute import KNNImputer
+from sklearn.impute import KNNImputer, SimpleImputer
 import warnings
 warnings.filterwarnings('ignore') #because we don't project into a specific coordinate reference system, we get warnings about distance calculations. 
 # We don't really care as we just need the polygon as shapes not as geospatial objects.
@@ -100,42 +100,43 @@ change_status_train = train_df[change_status_cols].apply(LabelEncoder().fit_tran
 change_status_test = test_df[change_status_cols].apply(LabelEncoder().fit_transform)
 
 # Polygon features
-print("Calculating polygon features...")
 print("area and perimeter (log and raw)...")
-area_train_log = pd.DataFrame({'area': np.log1p(train_df.geometry.area)}, index=train_df.index)
-area_test_log = pd.DataFrame({'area': np.log1p(test_df.geometry.area)}, index=test_df.index)
+area_train = train_df.geometry.area.values
+area_test = test_df.geometry.area.values
+perimeter_train = train_df.geometry.length.values
+perimeter_test = test_df.geometry.length.values
 
-perimeter_train_log = pd.DataFrame({'perimeter': np.log1p(train_df.geometry.length)}, index=train_df.index)
-perimeter_test_log = pd.DataFrame({'perimeter': np.log1p(test_df.geometry.length)}, index=test_df.index)
+min_perimeter = min(perimeter_train.min(), perimeter_test.min())*0.01
+polygon_features_train = pd.DataFrame({
+    'area_log': np.log1p(area_train),
+    'area': area_train,
+    'perimeter_log': np.log1p(perimeter_train),
+    'perimeter': perimeter_train,
+    'x_centroid': train_df.geometry.centroid.x.values,
+    'y_centroid': train_df.geometry.centroid.y.values,
+    'product': area_train * perimeter_train,
+    'ratio': area_train / (perimeter_train + min_perimeter)
+}, index=train_df.index)
 
-area_train = pd.DataFrame({'area': train_df.geometry.area}, index=train_df.index)
-area_test = pd.DataFrame({'area': test_df.geometry.area}, index=test_df.index)
-
-perimeter_train = pd.DataFrame({'perimeter': train_df.geometry.length}, index=train_df.index)
-perimeter_test = pd.DataFrame({'perimeter': test_df.geometry.length}, index=test_df.index)
-
-print("centroids")
-x_centroid_train = pd.DataFrame({'x_centroid': train_df.geometry.centroid.x}, index=train_df.index)
-y_centroid_train = pd.DataFrame({'y_centroid': train_df.geometry.centroid.y}, index=train_df.index)
-x_centroid_test = pd.DataFrame({'x_centroid': test_df.geometry.centroid.x}, index=test_df.index)
-y_centroid_test = pd.DataFrame({'y_centroid': test_df.geometry.centroid.y}, index=test_df.index)
-
-print("product and ratios...")
-product_train = pd.DataFrame({'product': area_train['area'].values * perimeter_train['perimeter'].values}, index=train_df.index)
-product_test = pd.DataFrame({'product': area_test['area'].values * perimeter_test['perimeter'].values}, index=test_df.index)
-
-min_value = min(area_train['area'].min(), perimeter_train['perimeter'].min())
-ratio_train = pd.DataFrame({'ratio': area_train['area'].values / (perimeter_train['perimeter'].values + min_value*0.01)}, index=train_df.index)  # add small value to avoid division by zero
-ratio_test = pd.DataFrame({'ratio': area_test['area'].values / (perimeter_test['perimeter'].values + min_value*0.01)}, index=test_df.index)
+polygon_features_test = pd.DataFrame({
+    'area_log': np.log1p(area_test),
+    'area': area_test,
+    'perimeter_log': np.log1p(perimeter_test),
+    'perimeter': perimeter_test,
+    'x_centroid': test_df.geometry.centroid.x.values,
+    'y_centroid': test_df.geometry.centroid.y.values,
+    'product': area_test * perimeter_test,
+    'ratio': area_test / (perimeter_test + min_perimeter)
+}, index=test_df.index)
 
 # Standardize polygon features
-polygon_features_train = pd.concat([area_train_log, area_train, perimeter_train_log, perimeter_train, x_centroid_train, y_centroid_train, product_train, ratio_train], axis=1)
-polygon_features_test = pd.concat([area_test_log, area_test, perimeter_test_log, perimeter_test, x_centroid_test, y_centroid_test, product_test, ratio_test], axis=1)
+print("Standardizing polygon features...")
 scaler_polygon = StandardScaler()
 polygon_features_train_scaled = pd.DataFrame(scaler_polygon.fit_transform(polygon_features_train), columns=polygon_features_train.columns, index=train_df.index)
 polygon_features_test_scaled = pd.DataFrame(scaler_polygon.transform(polygon_features_test), columns=polygon_features_test.columns, index=test_df.index)
 
 # Concatenate all features
+print("Concatenating all features...")
 train_features = pd.concat([
     train_img_scaled,
     train_urban_df,
@@ -153,12 +154,27 @@ test_features = pd.concat([
     test_intervals,
     polygon_features_test_scaled
 ], axis=1)
+# Check for missing values
+print(f"Missing values in train: {train_features.isna().sum().sum()}")
+print(f"Columns with all NaN: {train_features.columns[train_features.isna().all()].tolist()}")
 
-# Use an knn imputer to fill in missing values in the features
-imputer = KNNImputer(n_neighbors=5)
+# Drop columns that are entirely NaN
+train_features = train_features.dropna(axis=1, how='all')
+test_features = test_features[train_features.columns]  # Keep same columns in test
+
+# Use an imputer to fill in missing values in the features
+print("Imputing missing values with the imputer...")
+#imputer = KNNImputer(n_neighbors=3) #was too slow 
+imputer = SimpleImputer(strategy='median')
 train_features_imputed = pd.DataFrame(imputer.fit_transform(train_features), columns=train_features.columns, index=train_features.index)
 test_features_imputed = pd.DataFrame(imputer.transform(test_features), columns=test_features.columns, index=test_features.index)
 
+# Convert column names to regular strings (not StringDtype)
+train_features_imputed.columns = train_features_imputed.columns.astype(str)
+test_features_imputed.columns = test_features_imputed.columns.astype(str)
+
+# export
+print("Exporting features to parquet files...")
 train_features_imputed.to_parquet('processing/train_features.parquet')
 test_features_imputed.to_parquet('processing/test_features.parquet')
 pd.DataFrame(y).to_parquet('processing/y_train.parquet')
