@@ -22,7 +22,7 @@ def objective(trial):
         'max_depth': trial.suggest_int('max_depth', 3, 20),
         'l2_regularization': trial.suggest_float('l2_regularization', 0.0, 1.0),
         'random_state': 42,
-        'class_weight': trial.suggest_categorical('class_weight', ['balanced', None]),
+        'class_weight': trial.suggest_categorical('class_weight', ['balanced', None,{0: 10, 1: 10, 2: 1, 3: 1, 4: 100, 5: 1000}]),
     }
     
     model = HistGradientBoostingClassifier(**param)
@@ -31,7 +31,7 @@ def objective(trial):
     f1 = f1_score(y_test, y_pred, average='macro')
     acc_test = accuracy_score(y_test, y_pred)
     acc_train = accuracy_score(y_train, model.predict(X_train))
-    return f1 + np.abs(acc_test - acc_train)
+    return f1 - 0.5*np.abs(acc_test - acc_train)
 
 study = optuna.create_study(direction='maximize')
 study.optimize(objective, n_trials=20,n_jobs=-1)

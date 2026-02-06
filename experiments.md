@@ -79,3 +79,20 @@ Validation F1 Score: 0.8929361045508605,
   I might have not used properly smote because i applied on everything so the final evaluation value i had was wrong
 ### Third Experiment
 I applied ADASYN and with the "all" parameter, and only on data used to train the model. 
+results : not worth mentioning, not better
+### Fourth Experiment
+I tried using bova (boosted one vs all) the idea is to train two classifiers one on all the data and the other adapted for minority classes. Then if the unbalanced model is confident we follow its prediction, otherwise we follow the balanced model. If neither are confident we take the mean probability.
+i get these results : 
+               precision    recall  f1-score   support
+
+   Demolition       0.71      0.84      0.77      3151
+         Road       0.64      0.74      0.69      1431
+  Residential       0.80      0.76      0.78     14844
+   Commercial       0.67      0.67      0.67     10042
+   Industrial       0.15      0.14      0.15       132
+Mega Projects       0.03      0.20      0.05        15
+
+     accuracy                           0.73     29615
+    macro avg       0.50      0.56      0.52     29615
+ weighted avg       0.74      0.73      0.73     29615
+ 
