@@ -1,3 +1,4 @@
 *.csv
 *.parquet
 *.geojson
+*.venv
