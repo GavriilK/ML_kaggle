@@ -14,15 +14,15 @@ class BOVA:
         self.random_state = random_state
         self.models = []
     
-    def fit(self,X,Y,type="hist"):
+    def fit(self,X,Y,type="logit"):
         seed(self.random_state)
         N = len(Y[0])
         for category_idx in range(N):
             assert len(self.models)==category_idx
             if type=="logit":
                 self.models.append({
-                    "unbalanced": LogisticRegression(random_state=self.random_state),
-                    "balanced" : LogisticRegression(random_state=self.random_state)
+                    "unbalanced": LogisticRegression(random_state=self.random_state,max_iter=1000,solver='sag'),
+                    "balanced" : LogisticRegression(random_state=self.random_state,max_iter=1000,solver='sag')
                 })
             if type=='hist':
                 self.models.append({

@@ -115,7 +115,7 @@ LGBMClassifier(colsample_bytree=np.float64(0.9588740520120813),
     accuracy                           0.76     29615
    macro avg       0.57      0.51      0.52     29615
 weighted avg       0.76      0.76      0.76     29615
-
+On the public i get 0.90937
 # Sixth Experiment
 Validation F1 Score: 0.742020229404521, 
  Validation F1 Score (non-weighted): [0.77722702 0.72779923 0.78921917 0.7023204  0.95555556 0.5       ]
@@ -194,3 +194,46 @@ Mega Projects       0.29      0.60      0.39        15
  weighted avg       0.74      0.74      0.74     29615
 
  # 9th Experiment
+First ensemble with just means
+
+Ensemble F1 Score Per Class: [0.74569147 0.6731506  0.78088463 0.66646375 0.21212121 0.03174603]
+              precision    recall  f1-score   support
+
+           0       0.67      0.84      0.75      3151
+           1       0.58      0.80      0.67      1431
+           2       0.82      0.75      0.78     14844
+           3       0.68      0.65      0.67     10042
+           4       0.14      0.42      0.21       132
+           5       0.02      0.07      0.03        15
+
+    accuracy                           0.73     29615
+   macro avg       0.48      0.59      0.52     29615
+weighted avg       0.74      0.73      0.73     29615
+# 10th Experiment
+with mean / logistic regression at the end :               
+precision    recall  f1-score   support
+
+           0       0.72      0.83      0.78      3151
+           1       0.81      0.67      0.73      1431
+           2       0.81      0.80      0.80     14844
+           3       0.70      0.71      0.71     10042
+           4       0.00      0.00      0.00       132
+           5       0.00      0.00      0.00        15
+
+    accuracy                           0.76     29615
+   macro avg       0.51      0.50      0.50     29615
+weighted avg       0.76      0.76      0.76     29615
+
+Ensemble F1 Score Per Class: 
+              precision    recall  f1-score   support
+
+           0       0.65      0.87      0.74      3151
+           1       0.67      0.75      0.71      1431
+           2       0.84      0.73      0.78     14844
+           3       0.67      0.70      0.68     10042
+           4       0.18      0.39      0.25       132
+           5       0.00      0.00      0.00        15
+
+    accuracy                           0.73     29615
+   macro avg       0.50      0.57      0.53     29615
+weighted avg       0.75      0.73      0.74     29615
