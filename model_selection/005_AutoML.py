@@ -2,6 +2,7 @@ from flaml import AutoML
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
+import datetime
 
 train = pd.read_parquet('processing/train_features.parquet')
 submission = pd.read_parquet('processing/test_features.parquet')
@@ -13,7 +14,7 @@ train.columns = train.columns.astype(str)
 submission.columns = submission.columns.astype(str)
 
 # train/test :
-#X_train, X_test, y_train, y_test = train_test_split(train,y,test_size=0.15,random_state=42,stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(train,y,test_size=0.1,random_state=42,stratify=y)
 
 # automl run
 automl_settings = {
@@ -24,10 +25,10 @@ automl_settings = {
     "seed": 42,
     }
 automl = AutoML()
-automl.fit(X_train=train.to_numpy(), y_train=y, **automl_settings)
+automl.fit(X_train=X_train.to_numpy(), y_train=y_train, **automl_settings)
 
-y_pred = automl.predict(train.to_numpy())
-print(classification_report(y, y_pred))
+y_pred = automl.predict(X_test.to_numpy())
+print(classification_report(y_test, y_pred))
 
 #make submission
 submission_pred = automl.predict(submission.to_numpy())

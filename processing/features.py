@@ -1,6 +1,7 @@
 import pandas as pd
 import geopandas as gpd
 from sklearn.preprocessing import StandardScaler, MultiLabelBinarizer, LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 from sklearn.impute import KNNImputer, SimpleImputer
 import warnings
@@ -135,6 +136,16 @@ scaler_polygon = StandardScaler()
 polygon_features_train_scaled = pd.DataFrame(scaler_polygon.fit_transform(polygon_features_train), columns=polygon_features_train.columns, index=train_df.index)
 polygon_features_test_scaled = pd.DataFrame(scaler_polygon.transform(polygon_features_test), columns=polygon_features_test.columns, index=test_df.index)
 
+# Try a classifier that predicts the two minority classes and adds it as a feature:
+print("Training a classifier to predict the minority classes and adding it as a feature...")
+minority_class = [4, 5] # industrial and mega projects
+rf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+rf.fit(train_img_scaled, y.isin(minority_class))
+train_minority_proba = rf.predict_proba(train_img_scaled)[:, 1] # probability of being in the minority class
+test_minority_proba = rf.predict_proba(test_img_scaled)[:, 1]
+train_minority_proba_df = pd.DataFrame(train_minority_proba, columns=['minority_proba'], index=train_df.index)
+test_minority_proba_df = pd.DataFrame(test_minority_proba, columns=['minority_proba'], index=test_df.index)
+
 # Concatenate all features
 print("Concatenating all features...")
 train_features = pd.concat([
@@ -143,7 +154,8 @@ train_features = pd.concat([
     change_status_train,
     train_geo_df,
     train_intervals,
-    polygon_features_train_scaled
+    polygon_features_train_scaled,
+    train_minority_proba_df
 ], axis=1)
 
 test_features = pd.concat([
@@ -152,7 +164,8 @@ test_features = pd.concat([
     change_status_test,
     test_geo_df,
     test_intervals,
-    polygon_features_test_scaled
+    polygon_features_test_scaled,
+    test_minority_proba_df
 ], axis=1)
 # Check for missing values
 print(f"Missing values in train: {train_features.isna().sum().sum()}")
