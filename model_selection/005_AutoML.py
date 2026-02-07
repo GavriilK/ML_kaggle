@@ -14,23 +14,25 @@ train.columns = train.columns.astype(str)
 submission.columns = submission.columns.astype(str)
 
 # train/test :
-X_train, X_test, y_train, y_test = train_test_split(train,y,test_size=0.1,random_state=42,stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(train,y,test_size=0.1,random_state=42)
 
 # automl run
 automl_settings = {
-    "time_budget": 300,  # total time in seconds
+    "time_budget": 600,  # total time in seconds
     "metric": "macro_f1",
     "task": "classification",
     "verbose": 5,
     "seed": 42,
     }
 automl = AutoML()
-automl.fit(X_train=X_train.to_numpy(), y_train=y_train, **automl_settings)
+automl.fit(X_train=X_train.to_numpy(), y_train=y_train,X_val=X_test.to_numpy(), y_val=y_test, **automl_settings)
 
 y_pred = automl.predict(X_test.to_numpy())
 print(classification_report(y_test, y_pred))
 
+automl.fit(X_train=train.to_numpy(), y_train=y, **automl_settings)
+print(classification_report(y, automl.predict(train.to_numpy())))
 #make submission
 submission_pred = automl.predict(submission.to_numpy())
 date = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}'
-pd.DataFrame(submission_pred, columns=['change_type'], index=sample_submission.index).to_csv(f'submissions/bova_submission_{date}.csv', index=True, index_label='Id')
+pd.DataFrame(submission_pred, columns=['change_type'], index=sample_submission.index).to_csv(f'submissions/flaml_submission_{date}.csv', index=True, index_label='Id')

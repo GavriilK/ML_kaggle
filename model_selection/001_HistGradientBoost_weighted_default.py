@@ -18,7 +18,7 @@ X_train, X_test, y_train, y_test = train_test_split(X_intermediate, y_intermedia
 def objective(trial):
     param = {
         'learning_rate': trial.suggest_float('learning_rate', 0.01, 1.0),
-        'max_iter': 100,
+        'max_iter': 500,
         'max_depth': None,
         #'l2_regularization': trial.suggest_float('l2_regularization', 0.0, 1.0),
         'random_state': 42,
