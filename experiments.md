@@ -1,50 +1,36 @@
-# Experiments Documentation
+# Purpose
+This files serves as a documentation of the various experiments done
 
-This file documents the various experiments and their results for the ML Kaggle competition.
+# Experiments
+## Data exploration:
+TODO after the exploration of data:
+The change_type is the label to predict, so i will encode it as follows: 
+  - 'Road':5, 'Demolition':4, 'Commercial':3, 'Residential':2, 'Industrial':1, 'Mega Projects' : 0
+  
+- the urban_type column needs to be one-hot encoded for these categories: 
+    - 'Sparse Urban', 'Dense Urban', 'Rural', 'Industrial', 'Dense Urban', 'Urban Slum', 'N,A'
+- do one hot encoding for data_train.geography_type :
+  - 'Coastal', 'Dense Forest', 'Grass Land', 'Sparse Forest', 'Farms', 'Barren Land', 'Desert','River', 'Lakes', 'Snow', 'Hills'
+- The dates are not well ordered, and also i should convert the statuses into numerical values:
+     - 'No Change' : 0
+     - 'Demolished' : 1
+     - 'Modified' : 2
+     - 'New Construction' : 3
+- As the distribution of the urban type and geography is very skewed towards one class, it might be interesting to make features that count how many unusual types are present or about interactions between the two features.
+  
+- For the changes in date, could be interesting to have the number of days between the changes
+- for the polygons:
+  - value of each vertice
+  - area (log because of distribution)
+  - perimeter (log because of distribution)
+  - number of vertices
+  - centroid
 
----
-
-## Data Exploration & Feature Engineering
-
-### Label Encoding
-The `change_type` is the target variable, encoded as follows:
-- **'Demolition'**: 0
-- **'Road'**: 1
-- **'Residential'**: 2
-- **'Commercial'**: 3
-- **'Industrial'**: 4
-- **'Mega Projects'**: 5
-
-### Feature Engineering Plan
-
-**Categorical Features (One-Hot Encoding):**
-- **urban_type**: 'Sparse Urban', 'Dense Urban', 'Rural', 'Industrial', 'Urban Slum', 'N/A'
-- **geography_type**: 'Coastal', 'Dense Forest', 'Grass Land', 'Sparse Forest', 'Farms', 'Barren Land', 'Desert', 'River', 'Lakes', 'Snow', 'Hills'
-
-**Status Encoding:**
-- 'No Change': 0
-- 'Demolished': 1
-- 'Modified': 2
-- 'New Construction': 3
-
-**Engineered Features:**
-- Count of unusual urban/geography types (handling skewed distributions)
-- Interaction features between urban_type and geography_type
-- Days between status changes
-- Polygon features:
-  - Vertices values
-  - log(area) - due to skewed distribution
-  - log(perimeter) - due to skewed distribution
-  - Number of vertices
-  - Centroid coordinates (x, y)
-
-**Ideas to Try:**
-- Quantile/rank transform for area and perimeter
-- Multilayer Perceptron Classifier
-- Random Forest Classifier
-- Ensure dates are in chronological order
-
----
+-To try:
+    - quantile / rank transform for area or perimeter
+    - Multilayer Perceptron Classifier
+    - Random Forest Classifier
+    - make date in right order
 ## First Experiment
 Idea : 
 HistGradientBoosting regression with 5-fold optuna parameter tuning and test on a validation set.
@@ -70,90 +56,65 @@ Results:
 Analysis:
 - The minority classes are not well predicted, so the next improvements will be on the bad classes as the private board might reward better performance on the minority classes.
 - An approach is to try predicting the minority classes with a different model, or to use SMOTE to balance the classes.
----
+## Experiment 2: SMOTE Resampling
 
-## Experiment 2: SMOTE for Class Balancing
+### Idea
+We already used the weighted parameter in xgboost but it didn't improve the score on the minority classes which have not enough data, so now we will try SMOTE which resamples the minority classes synthetically so it has almost the same count of data as the majority classes.
+We could also try imputing our own weights and optimize to find the best weights
 
-**Approach:**
-- Try SMOTE to synthetically resample minority classes
-- Fix NaN values with KNNImputer
-- weighted parameter in XGBoost wasn't effective enough
+First we fix the NaN values with a knnimputer because we might need the data and it seems either image data is missing, either time / change status data is missing.
 
-**Data Preprocessing:**
-- KNNImputer for handling missing image data and status information
+### Results
+**Best Trial:**
+- **F1 Score:** 0.9064262214406363
+- **Params:**
+  - learning_rate: 0.4909390231840453
+  - max_depth: 13
+  - l2_regularization: 0.6519286101082055
+  - class_weight: None
 
-**Results:**
+**Validation Performance:**
+- **Weighted F1:** 0.8929361045508605
+- **Per-class F1:** [0.926, 0.946, 0.779, 0.725, 0.982, 0.999]
+- **Public Leaderboard:** 0.72871
 
-Best Trial:
-- **F1 Score**: 0.906
-- **Learning Rate**: 0.491
-- **Max Depth**: 13
-- **L2 Regularization**: 0.652
-- **Class Weight**: None
+### Analysis
+- The score we get are a bit too much on the minority classes and the majority classes have not gotten better results, we might be overfitting. We should probably try to use ADASYN (Adaptive Synthetic Sampling) a variant of SMOTE that focuses on hard to learn classes or we could try Borderline SMOTE.
+- Uploading on the leaderboard we get a score of : 0.72871 which means the model is either overfitting or the public board gives a high weight to the class encoded as 3 (value of 0.72516 is close to public 0.72871)
+- Also the problem is that im modifying the data distribution with smote on the val test while it shouldn't because the val/test should represent the real world distribution.
+- I might have not used properly smote because i applied on everything so the final evaluation value i had was wrong
+## Experiment 3: ADASYN Resampling
 
-Validation Scores:
-- **Weighted F1**: 0.893
-- **Per-Class F1**: [0.926, 0.946, 0.779, 0.725, 0.982, 0.999]
-- **Public Leaderboard**: 0.729
+### Idea
+I applied ADASYN and with the "all" parameter, and only on data used to train the model.
 
-**Analysis:**
-- ⚠️ **Major Issue**: Applied SMOTE to validation/test data (incorrect approach)
-- Minority class scores suspiciously high → overfitting to synthetic data
-- Validation should maintain real-world distribution
-- Public leaderboard score (0.729) much lower than validation (0.893) confirms overfitting
-- Next steps: ADASYN or Borderline SMOTE, apply only to training data
----
+### Results
+Not worth mentioning, not better
 
-## Experiment 3: ADASYN with "all" Parameter
-
-**Approach:**
-- Applied ADASYN with sampling_strategy="all"
-- Only applied to training data (corrected from Experiment 2)
-
-**Results:**
-- ❌ No improvement over baseline
-- Not worth detailed analysis
 ---
 
 ## Experiment 4: BOVA (Boosted One-vs-All)
 
-**Approach:**
-- Train two classifiers per class:
-  - **Unbalanced**: trained on all data
-  - **Balanced**: trained on undersampled balanced data
-- Prediction logic:
-  - If unbalanced model is confident → use its prediction
-  - Else if balanced model is not confident → use balanced prediction
-  - Otherwise → average probabilities
+### Idea
+I tried using bova (boosted one vs all) the idea is to train two classifiers one on all the data and the other adapted for minority classes. Then if the unbalanced model is confident we follow its prediction, otherwise we follow the balanced model. If neither are confident we take the mean probability.
 
-**Results:**
+### Results
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.71      | 0.84   | **0.77** | 3,151  |
-| Road           | 0.64      | 0.74   | **0.69** | 1,431  |
-| Residential    | 0.80      | 0.76   | **0.78** | 14,844 |
-| Commercial     | 0.67      | 0.67   | **0.67** | 10,042 |
-| Industrial     | 0.15      | 0.14   | **0.15** | 132    |
-| Mega Projects  | 0.03      | 0.20   | **0.05** | 15     |
+|----------------|-----------|--------|----------|----------|
+| Demolition     | 0.71      | 0.84   | 0.77     | 3,151    |
+| Road           | 0.64      | 0.74   | 0.69     | 1,431    |
+| Residential    | 0.80      | 0.76   | 0.78     | 14,844   |
+| Commercial     | 0.67      | 0.67   | 0.67     | 10,042   |
+| Industrial     | 0.15      | 0.14   | 0.15     | 132      |
+| Mega Projects  | 0.03      | 0.20   | 0.05     | 15       |
+| **Accuracy**   |           |        | **0.73** | 29,615   |
+| **Macro Avg**  | 0.50      | 0.56   | **0.52** | 29,615   |
+| **Weighted Avg**| 0.74     | 0.73   | 0.73     | 29,615   |
+## Experiment 5: AutoML (FLAML)
 
-**Overall:**
-- **Accuracy**: 0.73
-- **Macro F1**: 0.52
-- **Weighted F1**: 0.73
-
-**Analysis:**
-- Majority classes perform well (0.67-0.78 F1)
-- Minority classes still struggle significantly
----
-
-## Experiment 5: AutoML with LGBM
-
-**Approach:**
-- Automated model selection and hyperparameter tuning
-
-**Model Selected:**
-- **LGBMClassifier**
+### Model
+LGBMClassifier with FLAML-optimized parameters:
 - colsample_bytree: 0.959
 - learning_rate: 0.069
 - max_bin: 255
@@ -162,236 +123,174 @@ Validation Scores:
 - reg_alpha: 0.090
 - reg_lambda: 0.034
 
-**Results:**
+### Results
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.74      | 0.82   | **0.78** | 3,151  |
-| Road           | 0.83      | 0.69   | **0.75** | 1,431  |
-| Residential    | 0.80      | 0.81   | **0.80** | 14,844 |
-| Commercial     | 0.71      | 0.69   | **0.70** | 10,042 |
-| Industrial     | 0.38      | 0.05   | **0.08** | 132    |
-| Mega Projects  | 0.00      | 0.00   | **0.00** | 15     |
+|----------------|-----------|--------|----------|----------|
+| Demolition (0) | 0.74      | 0.82   | 0.78     | 3,151    |
+| Road (1)       | 0.83      | 0.69   | 0.75     | 1,431    |
+| Residential (2)| 0.80      | 0.81   | 0.80     | 14,844   |
+| Commercial (3) | 0.71      | 0.69   | 0.70     | 10,042   |
+| Industrial (4) | 0.38      | 0.05   | 0.08     | 132      |
+| Mega Projects (5)| 0.00    | 0.00   | 0.00     | 15       |
+| **Accuracy**   |           |        | **0.76** | 29,615   |
+| **Macro Avg**  | 0.57      | 0.51   | **0.52** | 29,615   |
+| **Weighted Avg**| 0.76     | 0.76   | 0.76     | 29,615   |
+| **Public Leaderboard** |  |        | **0.90937** |      |
+## Experiment 6: Binary Models + Minority Feature
 
-**Overall:**
-- **Accuracy**: 0.76
-- **Macro F1**: 0.52
-- **Weighted F1**: 0.76
-- **Public Leaderboard**: 0.909
+### Idea
+Added a feature representing the minority class (4 and 5)
 
-**Analysis:**
-- Good performance on majority classes
-- Still poor on minorities (Industrial, Mega Projects)
----
-
-## Experiment 6: Binary Models with Minority Feature
-
-**Approach:**
-- Added engineered feature indicating minority classes (4 and 5)
-- Train separate binary models
-
-**Results:**
-
-Validation Scores:
-- **Weighted F1**: 0.742
-- **Per-Class F1**: [0.777, 0.728, 0.789, 0.702, 0.956, 0.500]
+### Results
+**Validation Performance:**
+- **Weighted F1:** 0.742020229404521
+- **Per-class F1:** [0.777, 0.728, 0.789, 0.702, 0.956, 0.500]
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.70      | 0.87   | **0.78** | 3,151  |
-| Road           | 0.67      | 0.79   | **0.73** | 1,431  |
-| Residential    | 0.84      | 0.75   | **0.79** | 14,844 |
-| Commercial     | 0.68      | 0.72   | **0.70** | 10,042 |
-| Industrial     | 0.93      | 0.98   | **0.96** | 132    |
-| Mega Projects  | 0.67      | 0.40   | **0.50** | 15     |
+|----------------|-----------|--------|----------|----------|
+| Demolition (0) | 0.70      | 0.87   | 0.78     | 3,151    |
+| Road (1)       | 0.67      | 0.79   | 0.73     | 1,431    |
+| Residential (2)| 0.84      | 0.75   | 0.79     | 14,844   |
+| Commercial (3) | 0.68      | 0.72   | 0.70     | 10,042   |
+| Industrial (4) | 0.93      | 0.98   | 0.96     | 132      |
+| Mega Projects (5)| 0.67    | 0.40   | 0.50     | 15       |
+| **Accuracy**   |           |        | **0.75** | 29,615   |
+| **Macro Avg**  | 0.75      | 0.75   | **0.74** | 29,615   |
+| **Weighted Avg**| 0.76     | 0.75   | 0.76     | 29,615   |
 
-**Overall:**
-- **Accuracy**: 0.75
-- **Macro F1**: 0.74
-- **Weighted F1**: 0.76
+### Analysis
+With a feature representing the minority class (4 and 5), the f1 score of these two minority classes is way higher but the overall score hasnt not improved a lot, the other f1 score have gone down.
 
-**Analysis:**
-- ✅ Huge improvement on minority classes (Industrial: 0.96, Mega: 0.50)
-- ⚠️ Slight degradation on majority classes
-- Trade-off: better balance but lower overall weighted score
+**Idea after:** do multiple models : per medium high low freq, whole datasaet and then rf + lgbm + hist then on val split optimize param so biggestf1 score overall
 
-**Next Ideas:**
-- Multiple models per frequency tier (low/medium/high)
-- Ensemble: RF + LGBM + HistGradient
-- Optimize ensemble weights on validation split
+## Experiment 7: OneVsRest + RandomForest
 
----
+### Model
+Scikit's OneVsRest with RandomForestClassifier
 
-## Experiment 7: OneVsRest RandomForest
+### Best Trial
+- **F1 Score:** 0.6340419797020355
+- **Params:**
+  - n_estimators: 29
+  - max_depth: 19
+  - criterion: log_loss
+  - min_samples_split: 3
+  - min_samples_leaf: 7
+  - class_weight: balanced
 
-**Approach:**
-- Scikit-learn's OneVsRestClassifier with RandomForestClassifier
-- Includes minority class indicator feature
-- Optuna hyperparameter tuning
-
-**Best Parameters:**
-- n_estimators: 29
-- max_depth: 19
-- criterion: log_loss
-- min_samples_split: 3
-- min_samples_leaf: 7
-- class_weight: balanced
-
-**Results:**
-
-Validation Scores:
-- **Weighted F1**: 0.626
-- **Per-Class F1**: [0.693, 0.652, 0.775, 0.678, 0.831, 0.125]
+### Results
+**Validation Performance:**
+- **Weighted F1:** 0.6258216409686566
+- **Per-class F1:** [0.693, 0.652, 0.775, 0.678, 0.831, 0.125]
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.63      | 0.77   | **0.69** | 3,151  |
-| Road           | 0.65      | 0.65   | **0.65** | 1,431  |
-| Residential    | 0.81      | 0.74   | **0.78** | 14,844 |
-| Commercial     | 0.66      | 0.70   | **0.68** | 10,042 |
-| Industrial     | 0.91      | 0.77   | **0.83** | 132    |
-| Mega Projects  | 1.00      | 0.07   | **0.12** | 15     |
+|----------------|-----------|--------|----------|----------|
+| Demolition (0) | 0.63      | 0.77   | 0.69     | 3,151    |
+| Road (1)       | 0.65      | 0.65   | 0.65     | 1,431    |
+| Residential (2)| 0.81      | 0.74   | 0.78     | 14,844   |
+| Commercial (3) | 0.66      | 0.70   | 0.68     | 10,042   |
+| Industrial (4) | 0.91      | 0.77   | 0.83     | 132      |
+| Mega Projects (5)| 1.00    | 0.07   | 0.12     | 15       |
+| **Accuracy**   |           |        | **0.73** | 29,615   |
+| **Macro Avg**  | 0.78      | 0.62   | **0.63** | 29,615   |
+| **Weighted Avg**| 0.73     | 0.73   | 0.73     | 29,615   |
 
-**Overall:**
-- **Accuracy**: 0.73
-- **Macro F1**: 0.63
-- **Weighted F1**: 0.73
+### Analysis
+This is just sickit's onevsrest with randomforestclassifier, we can see the feature indicating the minority classes make them bettter but worse than the other.
 
-**Analysis:**
-- Minority feature helps Industrial (0.83) but Mega Projects still struggles (0.12)
-- Trade-off between precision and recall for minorities
+## Experiment 8: BOVA + RF + Cutoff Optimization ✅ BEST
 
----
+### Idea
+Bova with the new rf feature for minority classes 4 and 5
 
-## Experiment 8: BOVA + RandomForest + Cutoff Optimization 🏆
+### Cutoff Optimization Search
+Searching for optimal cutoffs...
+- New best! F1=0.6224, Industrial=0.10, Mega=0.05
+- New best! F1=0.6328, Industrial=0.10, Mega=0.10
+- New best! F1=0.6477, Industrial=0.15, Mega=0.10
+- New best! F1=0.6589, Industrial=0.15, Mega=0.15
+- New best! F1=0.6733, Industrial=0.20, Mega=0.15
+- New best! F1=0.6764, Industrial=0.25, Mega=0.15
+- New best! F1=0.6805, Industrial=0.25, Mega=0.20
+- New best! F1=0.6832, Industrial=0.30, Mega=0.20
+- New best! F1=0.6849, Industrial=0.35, Mega=0.20
+- New best! F1=0.6867, Industrial=0.40, Mega=0.20
+- New best! F1=0.6873, Industrial=0.50, Mega=0.20
 
-**Approach:**
-- BOVA (Boosted One-vs-All) approach
-- Added minority class feature (for classes 4 and 5)
-- Optimized prediction thresholds per class
+**Final best cutoffs:** [0.5, 0.5, 0.5, 0.5, 0.5, 0.2]
+**Final best F1:** 0.6873
 
-**Cutoff Optimization Progress:**
-```
-F1=0.622, Industrial=0.10, Mega=0.05
-F1=0.633, Industrial=0.10, Mega=0.10
-F1=0.648, Industrial=0.15, Mega=0.10
-F1=0.659, Industrial=0.15, Mega=0.15
-F1=0.673, Industrial=0.20, Mega=0.15
-F1=0.676, Industrial=0.25, Mega=0.15
-F1=0.681, Industrial=0.25, Mega=0.20
-F1=0.683, Industrial=0.30, Mega=0.20
-F1=0.685, Industrial=0.35, Mega=0.20
-F1=0.687, Industrial=0.40, Mega=0.20
-F1=0.687, Industrial=0.50, Mega=0.20 ← Best
-```
-
-**Optimized Cutoffs:** [0.5, 0.5, 0.5, 0.5, 0.5, 0.2]
-
-**Results:**
+### Results
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.71      | 0.84   | **0.77** | 3,151  |
-| Road           | 0.64      | 0.75   | **0.69** | 1,431  |
-| Residential    | 0.81      | 0.76   | **0.78** | 14,844 |
-| Commercial     | 0.68      | 0.67   | **0.68** | 10,042 |
-| Industrial     | 0.95      | 0.83   | **0.89** | 132    |
-| Mega Projects  | 0.29      | 0.60   | **0.39** | 15     |
+|----------------|-----------|--------|----------|----------|
+| Demolition     | 0.71      | 0.84   | 0.77     | 3,151    |
+| Road           | 0.64      | 0.75   | 0.69     | 1,431    |
+| Residential    | 0.81      | 0.76   | 0.78     | 14,844   |
+| Commercial     | 0.68      | 0.67   | 0.68     | 10,042   |
+| Industrial     | 0.95      | 0.83   | **0.89** | 132      |
+| Mega Projects  | 0.29      | 0.60   | **0.39** | 15       |
+| **Accuracy**   |           |        | **0.74** | 29,615   |
+| **Macro Avg**  | 0.68      | 0.74   | **0.70** | 29,615   |
+| **Weighted Avg**| 0.74     | 0.74   | 0.74     | 29,615   |
 
-**Overall:**
-- **Accuracy**: 0.74
-- **Macro F1**: 0.70 🎯
-- **Weighted F1**: 0.74
+## Experiment 9: Ensemble with Mean Averaging
 
-**Analysis:**
-- ✅ **Best macro F1 so far** (0.70)
-- ✅ Strong minority performance: Industrial (0.89), Mega (0.39)
-- ✅ Cutoff optimization key to success
-- Balanced performance across all classes
+### Idea
+First ensemble with just means
 
----
-
-## Experiment 9: Simple Mean Ensemble
-
-**Approach:**
-- Ensemble multiple models by averaging predictions
-
-**Results:**
-
-Per-Class F1: [0.746, 0.673, 0.781, 0.666, 0.212, 0.032]
+### Results
+**Per-class F1:** [0.746, 0.673, 0.781, 0.666, 0.212, 0.032]
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.67      | 0.84   | **0.75** | 3,151  |
-| Road           | 0.58      | 0.80   | **0.67** | 1,431  |
-| Residential    | 0.82      | 0.75   | **0.78** | 14,844 |
-| Commercial     | 0.68      | 0.65   | **0.67** | 10,042 |
-| Industrial     | 0.14      | 0.42   | **0.21** | 132    |
-| Mega Projects  | 0.02      | 0.07   | **0.03** | 15     |
+|----------------|-----------|--------|----------|----------|
+| Demolition (0) | 0.67      | 0.84   | 0.75     | 3,151    |
+| Road (1)       | 0.58      | 0.80   | 0.67     | 1,431    |
+| Residential (2)| 0.82      | 0.75   | 0.78     | 14,844   |
+| Commercial (3) | 0.68      | 0.65   | 0.67     | 10,042   |
+| Industrial (4) | 0.14      | 0.42   | 0.21     | 132      |
+| Mega Projects (5)| 0.02    | 0.07   | 0.03     | 15       |
+| **Accuracy**   |           |        | **0.73** | 29,615   |
+| **Macro Avg**  | 0.48      | 0.59   | **0.52** | 29,615   |
+| **Weighted Avg**| 0.74     | 0.73   | 0.73     | 29,615   |
+## Experiment 10: Ensemble with Logistic Regression Meta-Learner
 
-**Overall:**
-- **Accuracy**: 0.73
-- **Macro F1**: 0.52
-- **Weighted F1**: 0.73
+### Idea
+with mean / logistic regression at the end
 
-**Analysis:**
-- ❌ Simple averaging doesn't improve over best single model
-- Minority classes perform poorly
----
-
-## Experiment 10: Stacked Ensemble with Logistic Regression
-
-**Approach:**
-- Stack predictions from multiple models
-- Meta-learner: Logistic Regression
-
-**Results:**
-
-**Meta-Learner Performance:**
+### Results - Logistic Regression Stacking
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.72      | 0.83   | **0.78** | 3,151  |
-| Road           | 0.81      | 0.67   | **0.73** | 1,431  |
-| Residential    | 0.81      | 0.80   | **0.80** | 14,844 |
-| Commercial     | 0.70      | 0.71   | **0.71** | 10,042 |
-| Industrial     | 0.00      | 0.00   | **0.00** | 132    |
-| Mega Projects  | 0.00      | 0.00   | **0.00** | 15     |
+|----------------|-----------|--------|----------|----------|
+| Demolition (0) | 0.72      | 0.83   | 0.78     | 3,151    |
+| Road (1)       | 0.81      | 0.67   | 0.73     | 1,431    |
+| Residential (2)| 0.81      | 0.80   | 0.80     | 14,844   |
+| Commercial (3) | 0.70      | 0.71   | 0.71     | 10,042   |
+| Industrial (4) | 0.00      | 0.00   | 0.00     | 132      |
+| Mega Projects (5)| 0.00    | 0.00   | 0.00     | 15       |
+| **Accuracy**   |           |        | **0.76** | 29,615   |
+| **Macro Avg**  | 0.51      | 0.50   | **0.50** | 29,615   |
+| **Weighted Avg**| 0.76     | 0.76   | 0.76     | 29,615   |
 
-- Macro F1: 0.50
-- Weighted F1: 0.76
-
-**Final Ensemble Performance:**
+### Results - Ensemble Predictions
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.65      | 0.87   | **0.74** | 3,151  |
-| Road           | 0.67      | 0.75   | **0.71** | 1,431  |
-| Residential    | 0.84      | 0.73   | **0.78** | 14,844 |
-| Commercial     | 0.67      | 0.70   | **0.68** | 10,042 |
-| Industrial     | 0.18      | 0.39   | **0.25** | 132    |
-| Mega Projects  | 0.00      | 0.00   | **0.00** | 15     |
+|----------------|-----------|--------|----------|----------|
+| Demolition (0) | 0.65      | 0.87   | 0.74     | 3,151    |
+| Road (1)       | 0.67      | 0.75   | 0.71     | 1,431    |
+| Residential (2)| 0.84      | 0.73   | 0.78     | 14,844   |
+| Commercial (3) | 0.67      | 0.70   | 0.68     | 10,042   |
+| Industrial (4) | 0.18      | 0.39   | 0.25     | 132      |
+| Mega Projects (5)| 0.00    | 0.00   | 0.00     | 15       |
+| **Accuracy**   |           |        | **0.73** | 29,615   |
+| **Macro Avg**  | 0.50      | 0.57   | **0.53** | 29,615   |
+| **Weighted Avg**| 0.75     | 0.73   | 0.74     | 29,615   |
 
-**Overall:**
-- **Accuracy**: 0.73
-- **Macro F1**: 0.53
-- **Weighted F1**: 0.74
+## Experiment 11: FLAML with Train/Val Split
 
-**Analysis:**
-- ❌ Stacking doesn't improve over single best model (Experiment 8)
-- Meta-learner fails completely on minorities
-
----
-
-## Experiment 11: AutoML FLAML with Train/Val Split
-
-**Approach:**
-- FLAML AutoML with proper train/validation split
-- Then trained on all data (potential overfitting)
-
-### Phase 1: With Train/Val Split
-
-**Model Selected: LGBMClassifier**
+### Model - LGBM (with validation split)
+LGBMClassifier with FLAML-optimized parameters:
 - colsample_bytree: 0.970
 - learning_rate: 0.220
 - max_bin: 127
@@ -401,45 +300,40 @@ Per-Class F1: [0.746, 0.673, 0.781, 0.666, 0.212, 0.032]
 - reg_alpha: 0.003
 - reg_lambda: 0.361
 
-**Results:**
+### Results - With Validation Split
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.76      | 0.82   | **0.79** | 3,263  |
-| Road           | 0.77      | 0.69   | **0.73** | 1,416  |
-| Residential    | 0.79      | 0.81   | **0.80** | 14,774 |
-| Commercial     | 0.70      | 0.67   | **0.68** | 10,020 |
-| Industrial     | 0.94      | 0.98   | **0.96** | 129    |
-| Mega Projects  | 0.71      | 0.38   | **0.50** | 13     |
+|----------------|-----------|--------|----------|----------|
+| Demolition (0) | 0.76      | 0.82   | 0.79     | 3,263    |
+| Road (1)       | 0.77      | 0.69   | 0.73     | 1,416    |
+| Residential (2)| 0.79      | 0.81   | 0.80     | 14,774   |
+| Commercial (3) | 0.70      | 0.67   | 0.68     | 10,020   |
+| Industrial (4) | 0.94      | 0.98   | 0.96     | 129      |
+| Mega Projects (5)| 0.71    | 0.38   | 0.50     | 13       |
+| **Accuracy**   |           |        | **0.76** | 29,615   |
+| **Macro Avg**  | 0.78      | 0.73   | **0.74** | 29,615   |
+| **Weighted Avg**| 0.75     | 0.76   | 0.75     | 29,615   |
 
-- **Accuracy**: 0.76
-- **Macro F1**: 0.74
-- **Weighted F1**: 0.75
+### Model - XGBoost (on all data)
+Now on all the data (probably overfitting but let's see the results)
 
-### Phase 2: Trained on All Data
-
-**Model Selected: XGBClassifier**
+XGBClassifier with FLAML-optimized parameters:
 - colsample_bylevel: 0.959
 - learning_rate: 0.189
 - max_leaves: 35
 - min_child_weight: 1.132
 - n_estimators: 154
 
-**Results (Training Set):**
+### Results - All Data (Overfitting Check)
 
 | Class          | Precision | Recall | F1-Score | Support |
-|----------------|-----------|--------|----------|--------|
-| Demolition     | 0.76      | 0.85   | **0.80** | 31,509 |
-| Road           | 0.84      | 0.76   | **0.80** | 14,305 |
-| Residential    | 0.81      | 0.82   | **0.81** | 148,435|
-| Commercial     | 0.74      | 0.70   | **0.72** | 100,422|
-| Industrial     | 1.00      | 1.00   | **1.00** | 1,324  |
-| Mega Projects  | 1.00      | 1.00   | **1.00** | 151    |
-
-- **Accuracy**: 0.78
-- **Macro F1**: 0.86
-- **Weighted F1**: 0.78
-
-**Analysis:**
-- ⚠️ Perfect scores on minorities (1.00) → likely overfitting
-- Phase 1 results more realistic and generalizable
+|----------------|-----------|--------|----------|----------|
+| Demolition (0) | 0.76      | 0.85   | 0.80     | 31,509   |
+| Road (1)       | 0.84      | 0.76   | 0.80     | 14,305   |
+| Residential (2)| 0.81      | 0.82   | 0.81     | 148,435  |
+| Commercial (3) | 0.74      | 0.70   | 0.72     | 100,422  |
+| Industrial (4) | 1.00      | 1.00   | 1.00     | 1,324    |
+| Mega Projects (5)| 1.00    | 1.00   | 1.00     | 151      |
+| **Accuracy**   |           |        | **0.78** | 296,146  |
+| **Macro Avg**  | 0.86      | 0.86   | **0.86** | 296,146  |
+| **Weighted Avg**| 0.78     | 0.78   | 0.78     | 296,146  |
