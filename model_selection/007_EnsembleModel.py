@@ -1,5 +1,4 @@
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelBinarizer
@@ -13,6 +12,8 @@ submission = pd.read_parquet('processing/test_features.parquet')
 sample_submission = pd.read_csv('knn_sample_submission.csv', index_col=0)
 y = pd.read_parquet('processing/y_train.parquet').values.ravel()
 
+print(train.shape, y.shape)
+print(train.head(1))
 # train/test/val split :
 X_intermediate, X_val, y_intermediate, y_val = train_test_split(train, y, test_size=0.1, random_state=42, stratify=y)
 X_train, X_test, y_train, y_test = train_test_split(X_intermediate, y_intermediate, test_size=0.1, random_state=42, stratify=y_intermediate)
@@ -47,11 +48,13 @@ for i in range(6):
         direction='maximize',
         sampler=optuna.samplers.TPESampler(
             n_startup_trials=10,
-            multivariate=True
-        ),
-        pruner=optuna.pruners.MedianPruner(n_startup_trials=5)
+            multivariate=True),
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=5),
+        storage='sqlite:///model_selection/models/optuna_study.db',
+        load_if_exists=True,
+        study_name=f'class_{i}_optimization'
     )
-    study.optimize(objective, n_trials=20, show_progress_bar=True)
+    study.optimize(objective, n_trials=15, show_progress_bar=True)
     print('Best trial:')
     trial = study.best_trial
     print(f'  F1 Score: {trial.value}')
@@ -100,7 +103,7 @@ probas_general_rf = general_model_rf.predict_proba(X_val)
 probas_general_hist = general_model_hist.predict_proba(X_val)
 
 #logistic regression ensemble
-logit = LogisticRegression(random_state=42, max_iter=1000)
+logit = RandomForestClassifier(n_estimators=300, random_state=42, max_depth=50, n_jobs=-1)
 logit.fit(np.concatenate([probas_binaries, probas_general_rf, probas_general_hist], axis=1), y_val)
 probas_ensemble = logit.predict_proba(np.concatenate([probas_binaries, probas_general_rf, probas_general_hist], axis=1))
 y_pred_ensemble = np.argmax(probas_ensemble, axis=1)
@@ -124,7 +127,7 @@ probas_binaries_submission = np.zeros((len(submission), 6))
 for i in range(6):
     probas_binaries_submission[:, i] = binary_models[i].predict_proba(submission)[:, 1]
 
-probas_ensemble_submission = logit.predict_proba(np.concatenate([probas_binaries_submission, general_model_rf.predict_proba(submission), general_model_hist.predict_proba(submission)], axis=1))
+probas_ensemble_submission = combine(probas_binaries_submission, general_model_rf.predict_proba(submission), general_model_hist.predict_proba(submission))
 submission_pred_ensemble = np.argmax(probas_ensemble_submission, axis=1)
 
 date = f'{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}'

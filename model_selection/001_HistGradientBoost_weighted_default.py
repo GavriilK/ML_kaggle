@@ -18,7 +18,7 @@ X_train, X_test, y_train, y_test = train_test_split(X_intermediate, y_intermedia
 def objective(trial):
     param = {
         'learning_rate': trial.suggest_float('learning_rate', 0.01, 1.0),
-        'max_iter': 500,
+        'max_iter': 1000,
         'max_depth': None,
         #'l2_regularization': trial.suggest_float('l2_regularization', 0.0, 1.0),
         'random_state': 42,
@@ -30,7 +30,7 @@ def objective(trial):
     model = HistGradientBoostingClassifier(**param)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
-    f1 = f1_score(y_test, y_pred, average='macro')
+    f1 = f1_score(y_test, y_pred, average='weighted')
     return f1 
 
 study = optuna.create_study(direction='maximize',pruner=optuna.pruners.MedianPruner(n_startup_trials=5),sampler=optuna.samplers.TPESampler(n_startup_trials=10,multivariate=True))
@@ -47,7 +47,7 @@ best_params = trial.params
 model = HistGradientBoostingClassifier(**best_params)
 model.fit(X_intermediate, y_intermediate)
 y_val_pred = model.predict(X_val)
-val_f1 = f1_score(y_val, y_val_pred, average='macro')
+val_f1 = f1_score(y_val, y_val_pred, average='weighted')
 val2_f1 = f1_score(y_val, y_val_pred, average=None)
 print(f'Validation F1 Score: {val_f1}, \n Validation F1 Score (non-weighted): {val2_f1}')
 print(classification_report(y_val, y_val_pred))

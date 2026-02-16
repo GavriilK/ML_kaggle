@@ -337,3 +337,79 @@ XGBClassifier with FLAML-optimized parameters:
 | **Accuracy**   |           |        | **0.78** | 296,146  |
 | **Macro Avg**  | 0.86      | 0.86   | **0.86** | 296,146  |
 | **Weighted Avg**| 0.78     | 0.78   | 0.78     | 296,146  |
+
+# 12th
+just trying with more estimators (in order to overfit as it gives a better score on the public)
+Best trial:
+  F1 Score: 0.7545978512853171
+  Params: 
+    learning_rate: 0.014864154394713391
+    max_leaf_nodes: 42
+    class_weight: None
+    min_samples_leaf: 4
+Validation F1 Score: 0.7247289973267461, 
+ Validation F1 Score (non-weighted): [0.76301807 0.63892289 0.77650758 0.6459935  0.92430279 0.32258065]
+              precision    recall  f1-score   support
+
+           0       0.76      0.77      0.76      3263
+           1       0.76      0.55      0.64      1416
+           2       0.75      0.80      0.78     14774
+           3       0.67      0.62      0.65     10020
+           4       0.95      0.90      0.92       129
+           5       0.28      0.38      0.32        13
+
+    accuracy                           0.73     29615
+   macro avg       0.69      0.67      0.68     29615
+weighted avg       0.73      0.73      0.72     29615
+
+              precision    recall  f1-score   support
+
+           0       0.74      0.76      0.75     31509
+           1       0.80      0.56      0.66     14305
+           2       0.76      0.80      0.78    148435
+           3       0.67      0.63      0.65    100422
+           4       0.99      0.99      0.99      1324
+           5       0.93      0.93      0.93       151
+
+    accuracy                           0.73    296146
+   macro avg       0.81      0.78      0.79    296146
+weighted avg       0.73      0.73      0.73    296146
+
+# 13th
+Basically the feature I was doing (rf that takes into input my img std or mean features and then I make new features out of the probability of binary classification) but this time with the mean and high frequency classes (so 1,2 and 3,4) and I get these results while optimizing the hyperparemeters :
+Best trial:
+  F1 Score: 0.7989038382064628
+  Params: 
+    max_iter: 1000,
+    max_depth: None,
+    learning_rate: 0.025862416856792053
+    max_leaf_nodes: 50
+    class_weight: None
+    min_samples_leaf: 17
+Validation F1 Score: 0.7998011183558019, 
+ Validation F1 Score (non-weighted): [0.97148988 0.9380531  0.81172492 0.70694989 0.85950413 0.07058824]
+              precision    recall  f1-score   support
+
+           0       0.97      0.97      0.97      3263
+           1       0.94      0.94      0.94      1416
+           2       0.80      0.83      0.81     14774
+           3       0.73      0.68      0.71     10020
+           4       0.92      0.81      0.86       129
+           5       0.04      0.23      0.07        13
+
+    accuracy                           0.80     29615
+   macro avg       0.73      0.74      0.73     29615
+weighted avg       0.80      0.80      0.80     29615
+
+              precision    recall  f1-score   support
+
+           0       0.98      0.98      0.98     31509
+           1       0.96      0.95      0.95     14305
+           2       0.80      0.83      0.82    148435
+           3       0.74      0.69      0.71    100422
+           4       0.99      0.99      0.99      1324
+           5       0.89      0.92      0.91       151
+
+    accuracy                           0.81    296146
+   macro avg       0.89      0.89      0.89    296146
+weighted avg       0.81      0.81      0.81    296146

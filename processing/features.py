@@ -139,12 +139,32 @@ polygon_features_test_scaled = pd.DataFrame(scaler_polygon.transform(polygon_fea
 # Try a classifier that predicts the two minority classes and adds it as a feature:
 print("Training a classifier to predict the minority classes and adding it as a feature...")
 minority_class = [4, 5] # industrial and mega projects
-rf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+rf = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced',n_jobs=-1)
 rf.fit(train_img_scaled, y.isin(minority_class))
 train_minority_proba = rf.predict_proba(train_img_scaled)[:, 1] # probability of being in the minority class
 test_minority_proba = rf.predict_proba(test_img_scaled)[:, 1]
 train_minority_proba_df = pd.DataFrame(train_minority_proba, columns=['minority_proba'], index=train_df.index)
 test_minority_proba_df = pd.DataFrame(test_minority_proba, columns=['minority_proba'], index=test_df.index)
+
+#same with medium frequency classes
+print("Training a classifier to predict the medium frequency classes and adding it as a feature...")
+medium_high_class = [0, 1]
+rf_medium_high = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced', n_jobs=-1)
+rf_medium_high.fit(train_img_scaled, y.isin(medium_high_class))
+train_medium_high_proba = rf_medium_high.predict_proba(train_img_scaled)[:, 1] # probability of being in the medium/high frequency class
+test_medium_high_proba = rf_medium_high.predict_proba(test_img_scaled)[:, 1]
+train_medium_high_proba_df = pd.DataFrame(train_medium_high_proba, columns=['medium_high_proba'], index=train_df.index) 
+test_medium_high_proba_df = pd.DataFrame(test_medium_high_proba, columns=['medium_high_proba'], index=test_df.index)    
+
+# same with the most frequent class
+print("Training a classifier to predict the most frequent class and adding it as a feature...")
+most_freq_class = [2, 3]
+rf_most_freq = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced', n_jobs=-1)
+rf_most_freq.fit(train_img_scaled, y.isin(most_freq_class))
+train_most_freq_proba = rf_most_freq.predict_proba(train_img_scaled)[:, 1] # probability of being in the most frequent class
+test_most_freq_proba = rf_most_freq.predict_proba(test_img_scaled)[:, 1]
+train_most_freq_proba_df = pd.DataFrame(train_most_freq_proba, columns=['most_freq_proba'], index=train_df.index) 
+test_most_freq_proba_df = pd.DataFrame(test_most_freq_proba, columns=['most_freq_proba'], index=test_df.index)
 
 # Concatenate all features
 print("Concatenating all features...")
@@ -155,7 +175,9 @@ train_features = pd.concat([
     train_geo_df,
     train_intervals,
     polygon_features_train_scaled,
-    train_minority_proba_df
+    train_minority_proba_df,
+    train_medium_high_proba_df,
+    train_most_freq_proba_df
 ], axis=1)
 
 test_features = pd.concat([
@@ -165,7 +187,9 @@ test_features = pd.concat([
     test_geo_df,
     test_intervals,
     polygon_features_test_scaled,
-    test_minority_proba_df
+    test_minority_proba_df,
+    test_medium_high_proba_df,
+    test_most_freq_proba_df
 ], axis=1)
 # Check for missing values
 print(f"Missing values in train: {train_features.isna().sum().sum()}")
