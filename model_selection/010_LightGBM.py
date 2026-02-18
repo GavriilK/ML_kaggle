@@ -6,8 +6,7 @@ import optuna
 import datetime
 import numpy as np
 from lightgbm import LGBMClassifier
-import lightgbm as lgb
-lgb.set_log_level('error')
+
 
 train = pd.read_parquet('processing/train_features.parquet')
 submission = pd.read_parquet('processing/test_features.parquet')
@@ -21,9 +20,14 @@ X_train, X_test, y_train, y_test = train_test_split(X_intermediate, y_intermedia
 def objective(trial):
     param = {
         'learning_rate': trial.suggest_float('learning_rate', 0.01, 1.0),
-        #overfiting
-        'n_estimators':  1000,
-        'max_depth': -1
+        #overfiting helping parameters
+        'n_estimators':  500,
+        'max_depth': -1,
+        "verbose": -1,
+        'min_child_samples': 5,
+        'num_leaves': 50,
+        'random_state': 42,
+        'n_jobs': -1
     }
     
     model = LGBMClassifier(**param)
@@ -33,7 +37,7 @@ def objective(trial):
     return f1
 
 study = optuna.create_study(direction='maximize',pruner=optuna.pruners.MedianPruner(n_startup_trials=5),sampler=optuna.samplers.TPESampler(n_startup_trials=10,multivariate=True))
-study.optimize(objective, n_trials=20,n_jobs=-1)
+study.optimize(objective, n_trials=10,n_jobs=-1)
 print('Best trial:')
 trial = study.best_trial
 print(f'  F1 Score: {trial.value}')

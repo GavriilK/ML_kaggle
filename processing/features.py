@@ -157,7 +157,7 @@ train_medium_high_proba_df = pd.DataFrame(train_medium_high_proba, columns=['med
 test_medium_high_proba_df = pd.DataFrame(test_medium_high_proba, columns=['medium_high_proba'], index=test_df.index)    
 
 # same with the most frequent class
-print("Training a classifier to predict the most frequent class and adding it as a feature...")
+"""print("Training a classifier to predict the most frequent class and adding it as a feature...")
 most_freq_class = [2, 3]
 rf_most_freq = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced', n_jobs=-1)
 rf_most_freq.fit(train_img_scaled, y.isin(most_freq_class))
@@ -165,6 +165,8 @@ train_most_freq_proba = rf_most_freq.predict_proba(train_img_scaled)[:, 1] # pro
 test_most_freq_proba = rf_most_freq.predict_proba(test_img_scaled)[:, 1]
 train_most_freq_proba_df = pd.DataFrame(train_most_freq_proba, columns=['most_freq_proba'], index=train_df.index) 
 test_most_freq_proba_df = pd.DataFrame(test_most_freq_proba, columns=['most_freq_proba'], index=test_df.index)
+""" #--- IGNORE --- 
+
 
 # Concatenate all features
 print("Concatenating all features...")
@@ -177,7 +179,7 @@ train_features = pd.concat([
     polygon_features_train_scaled,
     train_minority_proba_df,
     train_medium_high_proba_df,
-    train_most_freq_proba_df
+    #train_most_freq_proba_df
 ], axis=1)
 
 test_features = pd.concat([
@@ -189,7 +191,7 @@ test_features = pd.concat([
     polygon_features_test_scaled,
     test_minority_proba_df,
     test_medium_high_proba_df,
-    test_most_freq_proba_df
+    #test_most_freq_proba_df
 ], axis=1)
 # Check for missing values
 print(f"Missing values in train: {train_features.isna().sum().sum()}")

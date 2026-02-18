@@ -42,7 +42,7 @@ for i in range(6):
         'num_leaves': trial.suggest_int('num_leaves', 1, 1000),
         }
     
-        model = LGBMClassifier(**param)
+        model = HistGradientBoostingClassifier(**param)
         model.fit(X_train, y_train_binary)
         y_pred = model.predict(X_test)
         f1 = f1_score(y_test_binary, y_pred, average='binary')
@@ -71,7 +71,7 @@ for i in range(6):
 
     # train on full train
     best_params = trial.params
-    model = LGBMClassifier(**best_params)
+    model = HistGradientBoostingClassifier(**best_params)
     model.fit(train, (y == i).astype(int))
     
     # Store the trained model
